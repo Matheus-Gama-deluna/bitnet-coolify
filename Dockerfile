@@ -9,6 +9,7 @@
 FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
 RUN apt-get update && apt-get install -y \
     git cmake python3 python3-pip wget curl \
@@ -38,8 +39,7 @@ RUN huggingface-cli download microsoft/bitnet-b1.58-2B-4T-gguf \
 # setup_env.py vai: compilar cmake, gerar kernels x86, quantizar o modelo
 RUN python3 setup_env.py \
     -md models/BitNet-b1.58-2B-4T \
-    -q i2_s \
-    || true
+    -q i2_s
 
 # Mostra o que foi gerado para diagnóstico
 RUN echo "=== build/bin ===" \
@@ -70,7 +70,7 @@ COPY --from=builder /build /app/BitNet
 RUN find /app/BitNet/build -name "*.so" -exec cp {} /usr/local/lib/ \; 2>/dev/null || true \
     && ldconfig
 
-RUN pip3 install --break-system-packages huggingface_hub
+RUN pip3 install --no-cache-dir --break-system-packages huggingface_hub
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

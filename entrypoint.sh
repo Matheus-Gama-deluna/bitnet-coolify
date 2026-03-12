@@ -26,7 +26,7 @@ echo ""
 # Na primeira execução, copia para o volume persistente /models/
 if [ ! -f "$MODEL_FILE" ]; then
     # Procura o modelo que veio na imagem (baixado pelo Dockerfile)
-    BUILT_IN=$(find /app/BitNet/models -name "*.gguf" | head -1)
+    BUILT_IN=$(find /app/BitNet/models -name "*.gguf" | head -n 1)
 
     if [ -n "$BUILT_IN" ]; then
         echo "▶ [1/2] Copiando modelo da imagem para o volume..."
@@ -39,7 +39,7 @@ if [ ! -f "$MODEL_FILE" ]; then
             --local-dir /tmp/dl \
             --include "*i2_s*"
 
-        FOUND=$(find /tmp/dl -name "*i2_s*.gguf" | head -1)
+        FOUND=$(find /tmp/dl -name "*i2_s*.gguf" | head -n 1)
         if [ -z "$FOUND" ]; then
             echo "✗ ERRO FATAL: Modelo não encontrado."
             exit 1
