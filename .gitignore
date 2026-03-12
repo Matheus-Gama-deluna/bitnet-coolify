@@ -1,0 +1,27 @@
+# Variáveis de ambiente com secrets
+.env
+
+# Modelos GGUF — grandes demais para o Git (use volumes Docker)
+*.gguf
+models/
+
+# Cache de compilação
+build/
+*.o
+*.a
+*.so
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+logs/
+
+# Sistemas operacionais
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp

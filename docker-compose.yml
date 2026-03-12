@@ -1,0 +1,51 @@
+services:
+
+  llamacpp-bitnet:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    environment:
+      # Número de threads CPU dedicadas ao BitNet
+      # Recomendado: total de vCores - 1 (ex: VPS 4 vCores → 3)
+      BITNET_THREADS: ${BITNET_THREADS:-3}
+
+      # Tamanho do contexto em tokens (máximo suportado: 4096)
+      BITNET_CTX: ${BITNET_CTX:-4096}
+
+      # Porta interna do servidor (não exposta externamente)
+      BITNET_PORT: ${BITNET_PORT:-8080}
+
+      # Temperatura: 0.0 = determinístico (ideal para classificação)
+      BITNET_TEMPERATURE: ${BITNET_TEMPERATURE:-0.0}
+
+    volumes:
+      # Modelo GGUF — persiste entre restarts e redeploys
+      - bitnet-models:/models
+      # Binários compilados — evita recompilação a cada restart
+      - bitnet-build:/app/BitNet/build
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 600s   # 10 min de tolerância para build + download
+
+    networks:
+      - ai-stack
+
+    restart: unless-stopped
+
+    # Sem ports: — acesso exclusivamente interno via ai-stack
+    # O Coolify não deve expor este serviço publicamente
+
+volumes:
+  bitnet-models:
+  bitnet-build:
+
+networks:
+  # Network externa compartilhada com LiteLLM e demais serviços
+  # Criar antes do deploy: docker network create ai-stack
+  ai-stack:
+    external: true
