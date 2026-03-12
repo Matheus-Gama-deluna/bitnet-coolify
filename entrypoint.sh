@@ -64,7 +64,7 @@ else
 fi
 
 # ─── PASSO 2: Compilação ──────────────────────────────────────────────────────
-if [ ! -f "$BUILD_MARKER" ]; then
+if [ ! -f "$BUILD_MARKER" ] || [ ! -f "$BUILD_DIR/bin/llama-server" ]; then
     echo ""
     echo "▶ [2/3] Compilando bitnet.cpp com kernels x86 (I2_S)..."
     echo "        Isso leva ~3-5 minutos na primeira execução."
@@ -79,9 +79,29 @@ if [ ! -f "$BUILD_MARKER" ]; then
         -DCMAKE_C_COMPILER=clang-18 \
         -DCMAKE_CXX_COMPILER=clang++-18 \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="$BUILD_DIR/bin" \
         2>&1 | tail -5
 
     make -j"$(nproc)" 2>&1 | tail -10
+
+    # Garante que o binário está onde o run_inference_server.py espera
+    mkdir -p "$BUILD_DIR/bin"
+    # Move qualquer binário llama-server encontrado para build/bin/
+    FOUND_BIN=$(find "$BUILD_DIR" -name "llama-server" -not -path "*/bin/*" | head -1)
+    if [ -n "$FOUND_BIN" ]; then
+        cp "$FOUND_BIN" "$BUILD_DIR/bin/llama-server"
+        echo "        Binário copiado para $BUILD_DIR/bin/llama-server"
+    fi
+
+    # Diagnóstico: mostra onde os binários foram gerados
+    echo "        Binários gerados:"
+    find "$BUILD_DIR" -type f -executable -name "llama-*" 2>/dev/null || echo "        (nenhum encontrado)"
+
+    if [ ! -f "$BUILD_DIR/bin/llama-server" ]; then
+        echo "✗ ERRO: llama-server não encontrado em $BUILD_DIR/bin/"
+        echo "  Verifique os logs do cmake acima."
+        exit 1
+    fi
 
     touch "$BUILD_MARKER"
     echo ""
