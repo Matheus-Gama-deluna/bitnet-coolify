@@ -62,6 +62,15 @@ echo ""
 
 cd /app/BitNet
 
+echo "=== DIAGNÓSTICO DO BINÁRIO ==="
+echo "- Localizando llama-server em toda a pasta BitNet:"
+find /app/BitNet -name "llama-server*" -type f
+echo "- Permissões da pasta build/bin:"
+ls -la build/bin/ 2>/dev/null || echo "Aviso: a pasta build/bin/ não existe."
+echo "- Vinculações dinâmicas (ldd):"
+ldd build/bin/llama-server 2>/dev/null || echo "Aviso: ldd não conseguiu executar no arquivo"
+echo "=============================="
+
 exec python3 run_inference_server.py \
     -m "$MODEL_FILE" \
     --host 0.0.0.0 \
