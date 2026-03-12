@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
 # BitNet b1.58 2B — entrypoint
-# O build já foi feito no Dockerfile (stage builder)
-# Este script apenas: baixa o modelo se necessário e inicia o servidor
+# O build e compilação já estão na imagem Docker
+# Este script: verifica/copia o modelo e inicia o servidor
 # =============================================================================
 set -e
 
@@ -21,47 +21,40 @@ echo "║  Threads : $THREADS | Context : $CTX | Porta : $PORT  ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
-# ─── PASSO 1: Modelo ──────────────────────────────────────────────────────────
-# O modelo não vai na imagem (muito grande) — baixa uma vez no volume
+# ─── Modelo: usa o que está no volume ou copia da imagem ──────────────────────
+# O modelo foi baixado durante o build e está em /app/BitNet/models/
+# Na primeira execução, copia para o volume persistente /models/
 if [ ! -f "$MODEL_FILE" ]; then
-    echo "▶ [1/2] Baixando modelo BitNet 2B do HuggingFace (~400MB)..."
+    # Procura o modelo que veio na imagem (baixado pelo Dockerfile)
+    BUILT_IN=$(find /app/BitNet/models -name "*.gguf" | head -1)
 
-    # Tenta arquivo i2_s (otimizado para x86)
-    huggingface-cli download microsoft/bitnet-b1.58-2B-4T-gguf \
-        --local-dir /tmp/dl \
-        --include "*i2_s*"
+    if [ -n "$BUILT_IN" ]; then
+        echo "▶ [1/2] Copiando modelo da imagem para o volume..."
+        mkdir -p "$MODEL_DIR"
+        cp "$BUILT_IN" "$MODEL_FILE"
+        echo "✓ Modelo copiado: $MODEL_FILE"
+    else
+        echo "▶ [1/2] Modelo não encontrado na imagem, baixando do HuggingFace..."
+        huggingface-cli download microsoft/bitnet-b1.58-2B-4T-gguf \
+            --local-dir /tmp/dl \
+            --include "*i2_s*"
 
-    FOUND=$(find /tmp/dl -name "*i2_s*.gguf" | head -1)
+        FOUND=$(find /tmp/dl -name "*i2_s*.gguf" | head -1)
+        if [ -z "$FOUND" ]; then
+            echo "✗ ERRO FATAL: Modelo não encontrado."
+            exit 1
+        fi
 
-    # Fallback: BF16 (arquivo correto confirmado)
-    if [ -z "$FOUND" ]; then
-        echo "        i2_s não encontrado, baixando BF16..."
-        curl -L -o /tmp/bitnet.gguf \
-            "https://huggingface.co/microsoft/BitNet-b1.58-2B-4T-gguf/resolve/main/BitNet-b1.58-2B-4T-BF16.gguf"
-        FOUND="/tmp/bitnet.gguf"
+        mkdir -p "$MODEL_DIR"
+        cp "$FOUND" "$MODEL_FILE"
+        rm -rf /tmp/dl
+        echo "✓ Modelo salvo: $MODEL_FILE"
     fi
-
-    if [ -z "$FOUND" ] || [ ! -f "$FOUND" ]; then
-        echo "✗ ERRO FATAL: Nenhum modelo encontrado."
-        exit 1
-    fi
-
-    # Valida que é um arquivo GGUF real (não uma página de erro HTML)
-    MAGIC=$(head -c 4 "$FOUND" 2>/dev/null || echo "")
-    if [ "$MAGIC" != "GGUF" ] && [[ "$MAGIC" != *"GGU"* ]]; then
-        echo "✗ ERRO: Arquivo inválido — não é um GGUF. Conteúdo: $MAGIC"
-        exit 1
-    fi
-
-    mkdir -p "$MODEL_DIR"
-    cp "$FOUND" "$MODEL_FILE"
-    rm -rf /tmp/dl /tmp/bitnet.gguf 2>/dev/null || true
-    echo "✓ Modelo salvo: $MODEL_FILE"
 else
-    echo "✓ [1/2] Modelo encontrado: $MODEL_FILE"
+    echo "✓ [1/2] Modelo no volume: $MODEL_FILE"
 fi
 
-# ─── PASSO 2: Servidor ────────────────────────────────────────────────────────
+# ─── Servidor ─────────────────────────────────────────────────────────────────
 echo ""
 echo "▶ [2/2] Iniciando servidor na porta $PORT..."
 echo "        http://0.0.0.0:$PORT/v1/chat/completions"
