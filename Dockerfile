@@ -8,6 +8,8 @@
 
 FROM ubuntu:24.04 AS builder
 
+ARG HF_REPO="tiiuae/Falcon3-7B-Instruct-1.58bit"
+
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
@@ -30,15 +32,10 @@ RUN pip3 install --break-system-packages \
 RUN sed -i 's/int8_t \* y_col = y/const int8_t * y_col = y/g' \
     src/ggml-bitnet-mad.cpp 2>/dev/null || true
 
-# Baixa o modelo GGUF (setup_env.py -md precisa do arquivo local)
-RUN huggingface-cli download microsoft/bitnet-b1.58-2B-4T-gguf \
-    --local-dir /build/models/BitNet-b1.58-2B-4T \
-    --include "*i2_s*"
-
-# Compila usando -md (model dir local) — não usa --hf-repo que tem lista restrita
-# setup_env.py vai: compilar cmake, gerar kernels x86, quantizar o modelo
+# Compila usando -hr (HuggingFace Repo dinâmico)
+# setup_env.py vai: baixar o modelo, compilar cmake, gerar kernels x86_64, quantizar
 RUN python3 setup_env.py \
-    -md models/BitNet-b1.58-2B-4T \
+    -hr ${HF_REPO} \
     -q i2_s
 
 # Mostra o que foi gerado para diagnóstico
@@ -54,6 +51,10 @@ RUN test -f /build/build/bin/llama-server \
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM ubuntu:24.04
+
+# Passa o nome do repositório remoto final para o runtime (para fallback do entrypoint se necessário)
+ARG HF_REPO="tiiuae/Falcon3-7B-Instruct-1.58bit"
+ENV RUNTIME_HF_REPO=$HF_REPO
 
 ENV DEBIAN_FRONTEND=noninteractive
 

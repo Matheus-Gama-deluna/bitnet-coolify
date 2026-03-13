@@ -34,8 +34,8 @@ if [ ! -f "$MODEL_FILE" ]; then
         cp "$BUILT_IN" "$MODEL_FILE"
         echo "✓ Modelo copiado: $MODEL_FILE"
     else
-        echo "▶ [1/2] Modelo não encontrado na imagem, baixando do HuggingFace..."
-        huggingface-cli download microsoft/bitnet-b1.58-2B-4T-gguf \
+        echo "▶ [1/2] Modelo não encontrado na imagem, baixando do repositório: ${RUNTIME_HF_REPO}"
+        huggingface-cli download ${RUNTIME_HF_REPO} \
             --local-dir /tmp/dl \
             --include "*i2_s*"
 

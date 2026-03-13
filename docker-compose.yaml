@@ -4,6 +4,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Troque o modelo abaixo antes do deploy sem precisar editar scripts!
+        # Recomendações PT-BR: tiiuae/Falcon3-7B-Instruct-1.58bit
+        - HF_REPO=${BITNET_MODEL:-tiiuae/Falcon3-7B-Instruct-1.58bit}
 
     environment:
       BITNET_THREADS: ${BITNET_THREADS:-3}
